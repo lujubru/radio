@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Gestionar Publicidades - Radio Online{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ads-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .admin-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .btn-back {
+        color: var(--text-secondary);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: color 0.3s;
+    }
+
+    .btn-back:hover {
+        color: var(--primary-color);
+    }
+
+    .upload-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 3rem;
+        border-top: 4px solid var(--primary-color);
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    .form-control {
+        background: var(--dark-bg);
+        border: 1px solid #333;
+        color: white;
+        padding: 0.75rem;
+        border-radius: 6px;
+        outline: none;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-color);
+    }
+
+    .btn-submit {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.3s;
+        width: 100%;
+    }
+
+    .btn-submit:hover {
+        background: var(--secondary-color);
+    }
+
+    .ads-list {
+        background: var(--card-bg);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .ad-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.5rem;
+        border-bottom: 1px solid #333;
+        transition: background 0.3s;
+    }
+
+    .ad-item:hover {
+        background: rgba(229, 9, 20, 0.05);
+    }
+
+    .ad-status {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        background: #4caf50;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ads-container">
+    <div class="admin-actions">
+        <a href="/admin" class="btn-back">Volver al Panel</a>
+        <h1 style="font-family: 'Bebas Neue'; font-size: 2.5rem;">Gestionar Publicidades</h1>
+    </div>
+
+    <div class="upload-card">
+        <h3 style="margin-bottom: 1.5rem;">Subir Nueva Publicidad</h3>
+        <form action="/admin/ads/upload" method="POST" enctype="multipart/form-data">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Título</label>
+                    <input type="text" name="title" class="form-control" required placeholder="Nombre de la publicidad">
+                </div>
+                <div class="form-group">
+                    <label>Duración (segundos)</label>
+                    <input type="number" name="duration" class="form-control" value="30">
+                </div>
+                <div class="form-group">
+                    <label>Tipo</label>
+                    <select name="ad_type" class="form-control">
+                        <option value="commercial">Comercial</option>
+                        <option value="promo">Promoción</option>
+                        <option value="id">ID de Radio</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Archivo MP3</label>
+                    <input type="file" name="file" class="form-control" accept=".mp3" required>
+                </div>
+            </div>
+            <button type="submit" class="btn-submit">Subir Publicidad</button>
+        </form>
+    </div>
+
+    <div class="ads-list">
+        <div style="padding: 1.5rem; background: rgba(255,255,255,0.02); border-bottom: 2px solid #333;">
+            <h3>Publicidades Activas ({{ ads|length }})</h3>
+        </div>
+
+        {% if ads %}
+            {% for ad in ads %}
+            <div class="ad-item">
+                <div>
+                    <h4>{{ ad.title }}</h4>
+                    <p style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem;">
+                        Duración: {{ ad.duration }}s | Tipo: {{ ad.ad_type }}
+                    </p>
+                </div>
+                <span class="ad-status">Activa</span>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                No hay publicidades cargadas.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

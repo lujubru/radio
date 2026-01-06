@@ -1,56 +1,344 @@
 {% extends "base.html" %}
 {% block title %}Gestionar: {{ playlist.name }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .playlist-header {
+        background: var(--card-bg);
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .duration-badge {
+        background: rgba(229, 9, 20, 0.1);
+        color: var(--primary-color);
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+
+    .search-section {
+        background: var(--card-bg);
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .search-box {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 0.75rem;
+        background: var(--dark-bg);
+        border: 2px solid #333;
+        border-radius: 8px;
+        color: white;
+        font-size: 1rem;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .btn-search {
+        padding: 0.75rem 2rem;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.3s;
+    }
+
+    .btn-search:hover {
+        background: var(--secondary-color);
+    }
+
+    .genre-filter {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .genre-chip {
+        padding: 0.5rem 1rem;
+        background: var(--dark-bg);
+        border: 1px solid #333;
+        border-radius: 20px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .genre-chip:hover, .genre-chip.active {
+        background: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+    }
+
+    .results-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .track-card {
+        background: var(--dark-bg);
+        border-radius: 8px;
+        padding: 1rem;
+        transition: transform 0.3s;
+    }
+
+    .track-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .track-card img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: 6px;
+        margin-bottom: 0.75rem;
+    }
+
+    .track-card h4 {
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .track-card p {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .btn-add-track {
+        width: 100%;
+        padding: 0.5rem;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+    }
+
+    .playlist-tracks {
+        background: var(--card-bg);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .playlist-track-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        border-bottom: 1px solid #333;
+        transition: background 0.3s;
+    }
+
+    .playlist-track-item:hover {
+        background: rgba(229, 9, 20, 0.05);
+    }
+
+    .track-position {
+        font-weight: bold;
+        color: var(--text-secondary);
+        min-width: 40px;
+    }
+
+    .track-cover-small {
+        width: 50px;
+        height: 50px;
+        border-radius: 6px;
+        object-fit: cover;
+    }
+
+    .track-info-inline {
+        flex: 1;
+    }
+
+    .btn-remove {
+        padding: 0.5rem 1rem;
+        background: transparent;
+        border: 1px solid #f44336;
+        color: #f44336;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-remove:hover {
+        background: #f44336;
+        color: white;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div style="max-width: 800px; margin: 0 auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h1>Editar: {{ playlist.name }}</h1>
-        <a href="/admin/playlists" style="color: var(--text-secondary); text-decoration: none;">← Volver</a>
+<div style="max-width: 1200px; margin: 0 auto;">
+    <div class="playlist-header">
+        <div>
+            <h1>{{ playlist.name }}</h1>
+            <p style="color: var(--text-secondary); margin-top: 0.5rem;">{{ playlist.description or 'Sin descripción' }}</p>
+        </div>
+        <div style="text-align: right;">
+            <div class="duration-badge">
+                <div style="font-size: 0.75rem; opacity: 0.8;">Duración Total</div>
+                <div style="font-size: 1.5rem;">{{ (total_duration // 60)|int }}:{{ "%02d"|format(total_duration % 60) }}</div>
+            </div>
+            <a href="/admin/playlists" style="color: var(--text-secondary); text-decoration: none; font-size: 0.875rem; margin-top: 0.5rem; display: inline-block;">Volver a Playlists</a>
+        </div>
     </div>
 
-    <div style="background: var(--card-bg); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;">
-        <h3 style="margin-bottom: 1rem;">Agregar Canción a la Lista</h3>
-        <form action="{{ url_for('add_track_to_playlist', playlist_id=playlist.id) }}" method="POST" style="display: flex; gap: 1rem;">
-            <select name="track_id" class="form-control" style="flex-grow: 1; background: #1a1a1a; color: white; padding: 0.5rem; border-radius: 6px;">
-                {% for track in all_tracks %}
-                    <option value="{{ track.id }}">{{ track.artist }} - {{ track.title }}</option>
-                {% endfor %}
-            </select>
-            <button type="submit" class="btn-primary" style="padding: 0.5rem 1.5rem;">Añadir</button>
-        </form>
+    <div class="search-section">
+        <h3 style="margin-bottom: 1rem;">Buscar en Jamendo</h3>
+
+        <div class="search-box">
+            <input type="text" id="searchInput" class="search-input" placeholder="Buscar canciones, artistas...">
+            <button onclick="searchJamendo()" class="btn-search">Buscar</button>
+        </div>
+
+        <div class="genre-filter">
+            <div class="genre-chip active" data-genre="">Todos</div>
+            <div class="genre-chip" data-genre="rock">Rock</div>
+            <div class="genre-chip" data-genre="pop">Pop</div>
+            <div class="genre-chip" data-genre="electronic">Electrónica</div>
+            <div class="genre-chip" data-genre="jazz">Jazz</div>
+            <div class="genre-chip" data-genre="classical">Clásica</div>
+            <div class="genre-chip" data-genre="ambient">Ambient</div>
+        </div>
+
+        <div id="searchResults" class="results-grid" style="min-height: 100px;">
+            <p style="grid-column: 1/-1; text-align: center; color: var(--text-secondary); padding: 2rem;">
+                Busca canciones en Jamendo para agregar a tu playlist
+            </p>
+        </div>
     </div>
 
-    <div style="background: var(--card-bg); border-radius: 12px; overflow: hidden;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead style="background: rgba(255,255,255,0.05);">
-                <tr>
-                    <th style="padding: 1rem; text-align: left;">Orden</th>
-                    <th style="padding: 1rem; text-align: left;">Canción</th>
-                    <th style="padding: 1rem; text-align: right;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for track in current_tracks %}
-                <tr style="border-bottom: 1px solid #333;">
-                    <td style="padding: 1rem;">#{{ loop.index }}</td>
-                    <td style="padding: 1rem;">
-                        <strong>{{ track.title }}</strong><br>
-                        <small style="color: var(--text-secondary);">{{ track.artist }}</small>
-                    </td>
-                    <td style="padding: 1rem; text-align: right;">
-                        <form action="{{ url_for('remove_track_from_playlist', playlist_id=playlist.id, track_id=track.id) }}" method="POST">
-                            <button type="submit" style="background: none; border: none; color: #ff4444; cursor: pointer;">Quitar ❌</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-                {% if not current_tracks %}
-                <tr>
-                    <td colspan="3" style="padding: 3rem; text-align: center; color: var(--text-secondary);">Esta playlist no tiene canciones todavía.</td>
-                </tr>
-                {% endif %}
-            </tbody>
-        </table>
+    <div class="playlist-tracks">
+        <div style="padding: 1.5rem; background: rgba(255,255,255,0.02); border-bottom: 2px solid #333;">
+            <h3>Canciones en la Playlist ({{ current_tracks|length }})</h3>
+        </div>
+
+        {% if current_tracks %}
+            {% for track_tuple in current_tracks %}
+            {% set track = track_tuple[0] %}
+            {% set position = track_tuple[1] %}
+            <div class="playlist-track-item">
+                <span class="track-position">#{{ position }}</span>
+                <img src="{{ track.cover_url or '/static/images/default-cover.jpg' }}" class="track-cover-small">
+                <div class="track-info-inline">
+                    <strong>{{ track.title }}</strong><br>
+                    <small style="color: var(--text-secondary);">{{ track.artist }} - {{ (track.duration // 60)|int }}:{{ "%02d"|format(track.duration % 60) }}</small>
+                </div>
+                <form action="{{ url_for('remove_track_from_playlist', playlist_id=playlist.id, track_id=track.id) }}" method="POST">
+                    <button type="submit" class="btn-remove">Quitar</button>
+                </form>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                Esta playlist no tiene canciones todavía. Busca y agrega canciones arriba.
+            </div>
+        {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedGenre = '';
+
+    document.querySelectorAll('.genre-chip').forEach(chip => {
+        chip.addEventListener('click', function() {
+            document.querySelectorAll('.genre-chip').forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            selectedGenre = this.dataset.genre;
+            searchJamendo();
+        });
+    });
+
+    async function searchJamendo() {
+        const query = document.getElementById('searchInput').value;
+        const resultsContainer = document.getElementById('searchResults');
+
+        resultsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 2rem;">Buscando...</p>';
+
+        try {
+            const response = await fetch(`/api/jamendo/search?q=${encodeURIComponent(query)}&genre=${selectedGenre}`);
+            const data = await response.json();
+
+            if (data.tracks && data.tracks.length > 0) {
+                resultsContainer.innerHTML = '';
+
+                data.tracks.forEach(track => {
+                    const card = document.createElement('div');
+                    card.className = 'track-card';
+                    card.innerHTML = `
+                        <img src="${track.cover_url || '/static/images/default-cover.jpg'}" alt="${track.title}">
+                        <h4>${track.title}</h4>
+                        <p>${track.artist}</p>
+                        <small style="color: var(--text-secondary); display: block; margin-bottom: 0.5rem;">${Math.floor(track.duration / 60)}:${String(track.duration % 60).padStart(2, '0')}</small>
+                        <button class="btn-add-track" onclick='addTrackDirectly(${JSON.stringify(track)})'>
+                            + Agregar
+                        </button>
+                    `;
+                    resultsContainer.appendChild(card);
+                });
+            } else {
+                resultsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-secondary);">No se encontraron resultados</p>';
+            }
+        } catch (error) {
+            resultsContainer.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #f44336;">Error al buscar canciones</p>';
+        }
+    }
+
+    async function addTrackDirectly(trackData) {
+        const formData = new FormData();
+        formData.append('title', trackData.title);
+        formData.append('artist', trackData.artist);
+        formData.append('album', trackData.album);
+        formData.append('duration', trackData.duration);
+        formData.append('audio_url', trackData.audio_url);
+        formData.append('cover_url', trackData.cover_url);
+
+        try {
+            await fetch('/admin/tracks/create', {
+                method: 'POST',
+                body: formData
+            });
+
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } catch (error) {
+            alert('Error al agregar la canción');
+        }
+    }
+
+    document.getElementById('searchInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchJamendo();
+        }
+    });
+</script>
 {% endblock %}

@@ -6,7 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import random
-import yt_dlp
+import requests
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -17,13 +17,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 db = SQLAlchemy(app)
 
-# Configuración de yt-dlp para extraer solo audio
-YDL_OPTIONS = {
-    'format': 'bestaudio/best',
-    'noplaylist': True,
-    'quiet': True,
-    'no_warnings': True,
-}
+JAMENDO_CLIENT_ID = os.environ.get('JAMENDO_CLIENT_ID', 'da67e0d3')
 
 # ===================================
 # MODELOS DE BASE DE DATOS
@@ -106,41 +100,57 @@ class PlaybackHistory(db.Model):
 # DECORADORES Y UTILIDADES
 # ===================================
 
-
-
-def get_youtube_data(url):
-    """Extrae metadatos de un video de YouTube"""
+def search_jamendo_tracks(query='', genre='', limit=20):
+    """Busca canciones en Jamendo API"""
     try:
-        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-            info = ydl.extract_info(url, download=False)
-            return {
-                'title': info.get('title'),
-                'artist': info.get('uploader'),
-                'duration': int(info.get('duration', 0)),
-                'cover_url': info.get('thumbnail'),
-                'audio_url': url # Guardamos la URL original de YT
-            }
+        url = 'https://api.jamendo.com/v3.0/tracks/'
+        params = {
+            'client_id': JAMENDO_CLIENT_ID,
+            'format': 'json',
+            'limit': limit,
+            'audioformat': 'mp32',
+            'include': 'musicinfo'
+        }
+
+        if query:
+            params['search'] = query
+        if genre:
+            params['tags'] = genre
+
+        response = requests.get(url, params=params)
+        data = response.json()
+
+        tracks = []
+        for track in data.get('results', []):
+            tracks.append({
+                'jamendo_id': track['id'],
+                'title': track['name'],
+                'artist': track['artist_name'],
+                'album': track.get('album_name', ''),
+                'duration': track['duration'],
+                'audio_url': track['audio'],
+                'cover_url': track.get('album_image', track.get('image', ''))
+            })
+        return tracks
     except Exception as e:
-        print(f"Error extraiendo de YouTube: {e}")
-        return None
-def resolve_youtube_url(url):
-    """Convierte un link de YouTube en un link de audio directo"""
-    if 'youtube.com' in url or 'youtu.be' in url:
-        try:
-            with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                info = ydl.extract_info(url, download=False)
-                return info['url'] # Esta es la URL real del stream
-        except Exception as e:
-            print(f"Error procesando YouTube: {e}")
-            return url
-    return url
+        print(f"Error buscando en Jamendo: {e}")
+        return []
 
+def get_jamendo_playlists(genre='', limit=20):
+    """Obtiene playlists predefinidas de Jamendo"""
+    try:
+        url = 'https://api.jamendo.com/v3.0/playlists/tracks/'
+        params = {
+            'client_id': JAMENDO_CLIENT_ID,
+            'format': 'json',
+            'limit': limit
+        }
 
-def resolve_yt_url(url):
-    """Obtiene la URL directa del stream de audio (temporal)"""
-    with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-        info = ydl.extract_info(url, download=False)
-        return info['url']
+        response = requests.get(url, params=params)
+        return response.json()
+    except Exception as e:
+        print(f"Error obteniendo playlists de Jamendo: {e}")
+        return []
 
 def login_required(f):
     @wraps(f)
@@ -286,25 +296,17 @@ def api_current_track():
     
     next_track_id = playlist_tracks[next_index].track_id
     track = Track.query.get(next_track_id)
-    
+
     # Registrar reproducción
     history = PlaybackHistory(track_id=track.id, duration_played=track.duration)
     db.session.add(history)
     db.session.commit()
-
-    if 'youtube.com' in track.audio_url or 'youtu.be' in track.audio_url:
-        try:
-            final_audio_url = resolve_yt_url(track.audio_url)
-        except:
-            return jsonify({'error': 'Error al resolver audio de YouTube'}), 500
-
 
     return jsonify({
         'type': 'track',
         'id': track.id,
         'title': track.title,
         'artist': track.artist,
-        'audio_url': final_url,
         'album': track.album,
         'audio_url': track.audio_url,
         'cover_url': track.cover_url,
@@ -429,38 +431,27 @@ def admin_tracks():
 @app.route('/admin/tracks/create', methods=['POST'])
 @login_required
 def create_track():
-    url = request.form.get('audio_url')
-    
-    # Si el link es de YouTube, intentamos autocompletar
-    if 'youtube.com' in url or 'youtu.be' in url:
-        yt_data = get_youtube_data(url)
-        if yt_data:
-            track = Track(
-                title=request.form.get('title') or yt_data['title'],
-                artist=request.form.get('artist') or yt_data['artist'],
-                album=request.form.get('album', 'YouTube'),
-                duration=yt_data['duration'],
-                audio_url=url, # Guardamos el link de YT
-                cover_url=request.form.get('cover_url') or yt_data['cover_url']
-            )
-        else:
-            flash('No se pudo procesar el link de YouTube', 'error')
-            return redirect(url_for('admin_tracks'))
-    else:
-        # Lógica normal para MP3 directos
-        track = Track(
-            title=request.form.get('title'),
-            artist=request.form.get('artist'),
-            album=request.form.get('album'),
-            duration=int(request.form.get('duration', 0)),
-            audio_url=url,
-            cover_url=request.form.get('cover_url')
-        )
-    
+    track = Track(
+        title=request.form.get('title'),
+        artist=request.form.get('artist'),
+        album=request.form.get('album'),
+        duration=int(request.form.get('duration', 0)),
+        audio_url=request.form.get('audio_url'),
+        cover_url=request.form.get('cover_url')
+    )
+
     db.session.add(track)
     db.session.commit()
     flash('Canción agregada con éxito', 'success')
     return redirect(url_for('admin_tracks'))
+
+@app.route('/api/jamendo/search')
+@login_required
+def jamendo_search():
+    query = request.args.get('q', '')
+    genre = request.args.get('genre', '')
+    tracks = search_jamendo_tracks(query=query, genre=genre)
+    return jsonify({'tracks': tracks})
 
 @app.route('/admin/ads')
 @login_required
@@ -528,18 +519,20 @@ def manifest():
 @login_required
 def manage_playlist(playlist_id):
     playlist = Playlist.query.get_or_404(playlist_id)
-    # Obtener tracks que ya están en la playlist
-    current_tracks = db.session.query(Track).join(
+
+    current_tracks = db.session.query(Track, PlaylistTrack.position).join(
         PlaylistTrack, Track.id == PlaylistTrack.track_id
     ).filter(PlaylistTrack.playlist_id == playlist_id).order_by(PlaylistTrack.position).all()
-    
-    # Obtener todas las canciones disponibles para agregar
+
     all_tracks = Track.query.filter_by(is_active=True).all()
-    
-    return render_template('playlist_manage.html', 
-                         playlist=playlist, 
-                         current_tracks=current_tracks, 
-                         all_tracks=all_tracks)
+
+    total_duration = sum([track[0].duration for track in current_tracks])
+
+    return render_template('playlist_manage.html',
+                         playlist=playlist,
+                         current_tracks=current_tracks,
+                         all_tracks=all_tracks,
+                         total_duration=total_duration)
 
 @app.route('/admin/playlists/<int:playlist_id>/add-track', methods=['POST'])
 @login_required
