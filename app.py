@@ -18,6 +18,14 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 db = SQLAlchemy(app)
 
 JAMENDO_CLIENT_ID = os.environ.get('JAMENDO_CLIENT_ID', '44c2831a')
+JAMENDO_CLIENT_SECRET = os.environ.get('JAMENDO_CLIENT_SECRET', 'a3ef8b81412651e6ca6ac4724b31e95e')
+
+# Variable global para mantener el estado de la radio (sincronizado para todos los oyentes)
+radio_state = {
+    'current_track_index': 0,
+    'last_update': None,
+    'current_playlist_id': None
+}
 
 # ===================================
 # MODELOS DE BASE DE DATOS
@@ -116,7 +124,6 @@ def search_jamendo_tracks(query='', genre='', limit=20):
         response = requests.get(url, params=params)
         data = response.json()
         
-        # --- LÍNEA DE DEBUG: Mira tu consola de Python cuando busques ---
         print(f"DEBUG: Respuesta Jamendo -> {data}") 
 
         if 'results' not in data:
@@ -136,6 +143,100 @@ def search_jamendo_tracks(query='', genre='', limit=20):
         return tracks
     except Exception as e:
         print(f"Error buscando en Jamendo: {e}")
+        return []
+def get_jamendo_tracks_by_artist(artist_name='', limit=50):
+    """Obtiene tracks de un artista específico de Jamendo"""
+    try:
+        url = 'https://api.jamendo.com/v3.0/tracks/'
+        params = {
+            'client_id': JAMENDO_CLIENT_ID,
+            'format': 'json',
+            'limit': limit,
+            'audioformat': 'mp32',
+            'artist_name': artist_name
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        tracks = []
+        for track in data.get('results', []):
+            tracks.append({
+                'jamendo_id': track['id'],
+                'title': track['name'],
+                'artist': track['artist_name'],
+                'album': track.get('album_name', ''),
+                'duration': track['duration'],
+                'audio_url': track['audio'],
+                'cover_url': track.get('album_image', track.get('image', ''))
+            })
+        return tracks
+    except Exception as e:
+        print(f"Error obteniendo tracks de artista: {e}")
+        return []
+
+def get_jamendo_popular_tracks(limit=50):
+    """Obtiene tracks populares de Jamendo para iniciar la radio"""
+    try:
+        url = 'https://api.jamendo.com/v3.0/tracks/'
+        params = {
+            'client_id': JAMENDO_CLIENT_ID,
+            'format': 'json',
+            'limit': limit,
+            'audioformat': 'mp32',
+            'order': 'popularity_total',
+            'include': 'musicinfo'
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        tracks = []
+        for track in data.get('results', []):
+            tracks.append({
+                'jamendo_id': track['id'],
+                'title': track['name'],
+                'artist': track['artist_name'],
+                'album': track.get('album_name', ''),
+                'duration': track['duration'],
+                'audio_url': track['audio'],
+                'cover_url': track.get('album_image', track.get('image', ''))
+            })
+        return tracks
+    except Exception as e:
+        print(f"Error obteniendo tracks populares: {e}")
+        return []
+
+def get_jamendo_tracks_by_genre(genre='rock', limit=50):
+    """Obtiene tracks por género de Jamendo"""
+    try:
+        url = 'https://api.jamendo.com/v3.0/tracks/'
+        params = {
+            'client_id': JAMENDO_CLIENT_ID,
+            'format': 'json',
+            'limit': limit,
+            'audioformat': 'mp32',
+            'tags': genre,
+            'order': 'popularity_total'
+        }
+        
+        response = requests.get(url, params=params)
+        data = response.json()
+        
+        tracks = []
+        for track in data.get('results', []):
+            tracks.append({
+                'jamendo_id': track['id'],
+                'title': track['name'],
+                'artist': track['artist_name'],
+                'album': track.get('album_name', ''),
+                'duration': track['duration'],
+                'audio_url': track['audio'],
+                'cover_url': track.get('album_image', track.get('image', ''))
+            })
+        return tracks
+    except Exception as e:
+        print(f"Error obteniendo tracks por género: {e}")
         return []
 
 @app.route('/admin/playlists/<int:playlist_id>/add-jamendo-track', methods=['POST'])
@@ -617,6 +718,174 @@ def remove_track_from_playlist(playlist_id, track_id):
     
     flash('Canción removida de la playlist', 'success')
     return redirect(url_for('manage_playlist', playlist_id=playlist_id))
+
+# ===================================
+# CARGA MASIVA DE CANCIONES DE JAMENDO
+# ===================================
+
+@app.route('/admin/playlists/<int:playlist_id>/load-jamendo', methods=['POST'])
+@login_required
+def load_jamendo_to_playlist(playlist_id):
+    """Carga canciones de Jamendo masivamente a una playlist"""
+    source_type = request.form.get('source_type', 'popular')  # popular, genre, search
+    genre = request.form.get('genre', 'rock')
+    search_query = request.form.get('search_query', '')
+    limit = int(request.form.get('limit', 30))
+    
+    # Obtener tracks según el tipo de fuente
+    if source_type == 'popular':
+        jamendo_tracks = get_jamendo_popular_tracks(limit=limit)
+    elif source_type == 'genre':
+        jamendo_tracks = get_jamendo_tracks_by_genre(genre=genre, limit=limit)
+    elif source_type == 'search':
+        jamendo_tracks = search_jamendo_tracks(query=search_query, limit=limit)
+    else:
+        jamendo_tracks = get_jamendo_popular_tracks(limit=limit)
+    
+    added_count = 0
+    for jtrack in jamendo_tracks:
+        # Verificar si el track ya existe en la DB
+        existing_track = Track.query.filter_by(audio_url=jtrack['audio_url']).first()
+        
+        if not existing_track:
+            new_track = Track(
+                title=jtrack['title'],
+                artist=jtrack['artist'],
+                album=jtrack.get('album', ''),
+                duration=jtrack['duration'],
+                audio_url=jtrack['audio_url'],
+                cover_url=jtrack.get('cover_url', '')
+            )
+            db.session.add(new_track)
+            db.session.flush()
+            track_id = new_track.id
+        else:
+            track_id = existing_track.id
+        
+        # Verificar si ya está en la playlist
+        existing_rel = PlaylistTrack.query.filter_by(
+            playlist_id=playlist_id,
+            track_id=track_id
+        ).first()
+        
+        if not existing_rel:
+            last_pos = db.session.query(db.func.max(PlaylistTrack.position)).filter_by(playlist_id=playlist_id).scalar() or 0
+            new_rel = PlaylistTrack(
+                playlist_id=playlist_id,
+                track_id=track_id,
+                position=last_pos + 1
+            )
+            db.session.add(new_rel)
+            added_count += 1
+    
+    db.session.commit()
+    flash(f'Se agregaron {added_count} canciones de Jamendo a la playlist', 'success')
+    return redirect(url_for('manage_playlist', playlist_id=playlist_id))
+
+@app.route('/admin/schedule/<int:schedule_id>/delete', methods=['POST'])
+@login_required
+def delete_schedule(schedule_id):
+    """Elimina un horario programado"""
+    schedule = Schedule.query.get_or_404(schedule_id)
+    db.session.delete(schedule)
+    db.session.commit()
+    flash('Horario eliminado exitosamente', 'success')
+    return redirect(url_for('admin_schedule'))
+
+# ===================================
+# API MEJORADA DE RADIO EN VIVO
+# ===================================
+
+@app.route('/api/radio/stream')
+def api_radio_stream():
+    """API principal para la radio - devuelve el track actual según horario"""
+    global radio_state
+    
+    # Obtener playlist actual según horario
+    playlist = get_current_playlist()
+    
+    if not playlist:
+        # Si no hay playlist programada, intentar obtener cualquier playlist activa
+        playlist = Playlist.query.filter_by(is_active=True).first()
+        if not playlist:
+            return jsonify({
+                'status': 'offline',
+                'message': 'No hay programación disponible',
+                'type': 'info'
+            })
+    
+    # Obtener tracks de la playlist
+    playlist_tracks = PlaylistTrack.query.filter_by(
+        playlist_id=playlist.id
+    ).order_by(PlaylistTrack.position).all()
+    
+    if not playlist_tracks:
+        return jsonify({
+            'status': 'offline',
+            'message': 'La playlist está vacía. El administrador debe agregar canciones.',
+            'playlist_name': playlist.name,
+            'type': 'info'
+        })
+    
+    # Verificar si cambió la playlist (para resetear el índice)
+    if radio_state['current_playlist_id'] != playlist.id:
+        radio_state['current_playlist_id'] = playlist.id
+        radio_state['current_track_index'] = 0
+    
+    # Obtener el track actual
+    current_index = radio_state['current_track_index'] % len(playlist_tracks)
+    current_track_rel = playlist_tracks[current_index]
+    track = Track.query.get(current_track_rel.track_id)
+    
+    if not track:
+        return jsonify({'status': 'error', 'message': 'Track no encontrado'})
+    
+    return jsonify({
+        'status': 'playing',
+        'type': 'track',
+        'id': track.id,
+        'title': track.title,
+        'artist': track.artist or 'Artista Desconocido',
+        'album': track.album or '',
+        'audio_url': track.audio_url,
+        'cover_url': track.cover_url or '/static/images/default-cover.jpg',
+        'duration': track.duration or 180,
+        'playlist': playlist.name,
+        'track_index': current_index,
+        'total_tracks': len(playlist_tracks)
+    })
+
+@app.route('/api/radio/next', methods=['POST'])
+def api_radio_next():
+    """Avanza al siguiente track de la radio (llamado cuando termina una canción)"""
+    global radio_state
+    radio_state['current_track_index'] += 1
+    radio_state['last_update'] = datetime.now()
+    return jsonify({'status': 'ok', 'next_index': radio_state['current_track_index']})
+
+@app.route('/api/radio/status')
+def api_radio_status():
+    """Devuelve el estado actual de la radio"""
+    playlist = get_current_playlist()
+    
+    now = datetime.now()
+    current_schedule = Schedule.query.filter(
+        Schedule.day_of_week == now.weekday(),
+        Schedule.start_time <= now.time(),
+        Schedule.end_time >= now.time(),
+        Schedule.is_active == True
+    ).first()
+    
+    return jsonify({
+        'is_live': playlist is not None,
+        'current_playlist': playlist.name if playlist else None,
+        'current_schedule': {
+            'start': current_schedule.start_time.strftime('%H:%M') if current_schedule else None,
+            'end': current_schedule.end_time.strftime('%H:%M') if current_schedule else None
+        } if current_schedule else None,
+        'server_time': now.strftime('%Y-%m-%d %H:%M:%S'),
+        'day_of_week': now.weekday()
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)
