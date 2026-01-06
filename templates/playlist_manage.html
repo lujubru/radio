@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Gestionar: {{ playlist.name }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h1>Editar: {{ playlist.name }}</h1>
+        <a href="/admin/playlists" style="color: var(--text-secondary); text-decoration: none;">← Volver</a>
+    </div>
+
+    <div style="background: var(--card-bg); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem;">
+        <h3 style="margin-bottom: 1rem;">Agregar Canción a la Lista</h3>
+        <form action="{{ url_for('add_track_to_playlist', playlist_id=playlist.id) }}" method="POST" style="display: flex; gap: 1rem;">
+            <select name="track_id" class="form-control" style="flex-grow: 1; background: #1a1a1a; color: white; padding: 0.5rem; border-radius: 6px;">
+                {% for track in all_tracks %}
+                    <option value="{{ track.id }}">{{ track.artist }} - {{ track.title }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn-primary" style="padding: 0.5rem 1.5rem;">Añadir</button>
+        </form>
+    </div>
+
+    <div style="background: var(--card-bg); border-radius: 12px; overflow: hidden;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: rgba(255,255,255,0.05);">
+                <tr>
+                    <th style="padding: 1rem; text-align: left;">Orden</th>
+                    <th style="padding: 1rem; text-align: left;">Canción</th>
+                    <th style="padding: 1rem; text-align: right;">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for track in current_tracks %}
+                <tr style="border-bottom: 1px solid #333;">
+                    <td style="padding: 1rem;">#{{ loop.index }}</td>
+                    <td style="padding: 1rem;">
+                        <strong>{{ track.title }}</strong><br>
+                        <small style="color: var(--text-secondary);">{{ track.artist }}</small>
+                    </td>
+                    <td style="padding: 1rem; text-align: right;">
+                        <form action="{{ url_for('remove_track_from_playlist', playlist_id=playlist.id, track_id=track.id) }}" method="POST">
+                            <button type="submit" style="background: none; border: none; color: #ff4444; cursor: pointer;">Quitar ❌</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not current_tracks %}
+                <tr>
+                    <td colspan="3" style="padding: 3rem; text-align: center; color: var(--text-secondary);">Esta playlist no tiene canciones todavía.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

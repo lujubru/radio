@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Programación de Radio{% endblock %}
+
+{% block extra_css %}
+<style>
+    .schedule-container { max-width: 900px; margin: 0 auto; }
+    .schedule-form { background: var(--card-bg); padding: 2rem; border-radius: 12px; margin-bottom: 2rem; }
+    .days-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; }
+    .day-card { background: var(--card-bg); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--primary-color); }
+    .time-slot { background: var(--dark-bg); padding: 0.5rem; border-radius: 4px; margin-top: 0.5rem; font-size: 0.9rem; display: flex; justify-content: space-between; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem; align-items: end; }
+    .btn-save { background: var(--primary-color); color: white; border: none; padding: 0.75rem; border-radius: 6px; cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="schedule-container">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+        <h1 style="font-family: 'Bebas Neue'; font-size: 2.5rem;">📅 Programación Semanal</h1>
+        <a href="/admin" style="color: var(--text-secondary); text-decoration: none;">← Volver</a>
+    </div>
+
+    <div class="schedule-form">
+        <h3 style="margin-bottom: 1rem;">Agregar Nuevo Horario</h3>
+        <form action="/admin/schedule/create" method="POST" class="form-row">
+            <div class="form-group">
+                <label>Día</label>
+                <select name="day_of_week" class="form-control" style="width:100%; padding:0.6rem; background:#1a1a1a; color:white; border:1px solid #333;">
+                    <option value="0">Lunes</option><option value="1">Martes</option>
+                    <option value="2">Miércoles</option><option value="3">Jueves</option>
+                    <option value="4">Viernes</option><option value="5">Sábado</option>
+                    <option value="6">Domingo</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Desde</label>
+                <input type="time" name="start_time" class="form-control" required style="width:100%; padding:0.5rem;">
+            </div>
+            <div class="form-group">
+                <label>Hasta</label>
+                <input type="time" name="end_time" class="form-control" required style="width:100%; padding:0.5rem;">
+            </div>
+            <div class="form-group">
+                <label>Playlist</label>
+                <select name="playlist_id" class="form-control" style="width:100%; padding:0.6rem; background:#1a1a1a; color:white; border:1px solid #333;">
+                    {% for playlist in playlists %}
+                    <option value="{{ playlist.id }}">{{ playlist.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-save" style="grid-column: span 4; margin-top: 1rem;">Guardar Programación</button>
+        </form>
+    </div>
+
+    <div class="days-grid">
+        {% for day_num in range(7) %}
+        <div class="day-card">
+            <h3>{{ days_map[day_num] }}</h3>
+            <div class="day-slots">
+                {% set day_found = false %}
+                {% for entry in schedules %}
+                    {% if entry.day_of_week == day_num %}
+                        <div class="time-slot">
+                            <span><strong>{{ entry.start_time.strftime('%H:%M') }} - {{ entry.end_time.strftime('%H:%M') }}</strong></span>
+                            <span style="color: var(--primary-color);">Playlist ID: {{ entry.playlist_id }}</span>
+                        </div>
+                        {% set day_found = true %}
+                    {% endif %}
+                {% endfor %}
+                {% if not day_found %}
+                    <p style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem;">Sin programación</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

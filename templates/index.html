@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Radio Online - En Vivo{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero {
+        text-align: center;
+        padding: 3rem 0;
+    }
+
+    .hero h1 {
+        font-family: 'Bebas Neue', cursive;
+        font-size: 4rem;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(90deg, #e50914, #ff6b6b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(76, 175, 80, 0.1);
+        color: #4caf50;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        margin-bottom: 1rem;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        background: #4caf50;
+        border-radius: 50%;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.5); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    .visualizer-container {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 2rem;
+        margin: 1rem 0;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        height: 150px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 3px;
+    }
+
+    .bar {
+        width: 6px;
+        background: linear-gradient(to top, var(--primary-color), #ff6b6b);
+        border-radius: 3px 3px 0 0;
+        height: 10px;
+        transition: height 0.1s ease;
+    }
+
+    .current-track-card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        margin: 2rem 0;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .large-cover {
+        width: 180px;
+        height: 180px;
+        border-radius: 12px;
+        object-fit: cover;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .track-meta { flex: 1; }
+    .track-meta h2 { font-size: 2.2rem; margin-bottom: 0.5rem; line-height: 1.2; }
+    .track-meta .artist { font-size: 1.4rem; color: var(--text-secondary); margin-bottom: 1.2rem; }
+    
+    .playlist-tag {
+        background: rgba(229, 9, 20, 0.2);
+        color: var(--primary-color);
+        padding: 0.4rem 1rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .loading-info {
+        text-align: center;
+        padding: 4rem;
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 768px) {
+        .current-track-card { flex-direction: column; text-align: center; padding: 1.5rem; }
+        .large-cover { width: 100%; max-width: 250px; height: 250px; }
+        .hero h1 { font-size: 2.5rem; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <div class="status-badge">
+        <span class="status-dot"></span> EN VIVO
+    </div>
+    <h1>RADIO ONLINE</h1>
+    <p>Rock, Pop y los mejores clásicos las 24 horas</p>
+</div>
+
+<div class="visualizer-container" id="visualizer">
+    </div>
+
+<div id="current-track" class="current-track-card" style="display: none;">
+    <img id="track-cover" src="/static/images/default-cover.jpg" alt="Cover" class="large-cover">
+    <div class="track-meta">
+        <span class="playlist-tag" id="track-playlist">Sintonizando...</span>
+        <h2 id="track-title" style="margin-top: 1rem;">Cargando canción...</h2>
+        <p class="artist" id="track-artist">Artista</p>
+    </div>
+</div>
+
+<div id="loading-state" class="loading-info">
+    <p>⏳ Conectando con la señal de audio...</p>
+</div>
+
+<div class="features">
+    <div class="feature-card" style="background: var(--card-bg); padding: 1.5rem; border-radius: 12px; text-align: center;">
+        <span style="font-size: 2rem;">🎸</span>
+        <h3>Calidad HD</h3>
+        <p style="color: var(--text-secondary); font-size: 0.9rem;">Audio optimizado para cualquier conexión.</p>
+    </div>
+    </div>
+{% endblock %}
+
+{% block player %}
+<div id="player-container" style="position: fixed; bottom: 0; left: 0; right: 0; background: #0a0a0a; border-top: 2px solid var(--primary-color); padding: 1rem; z-index: 1000;">
+    <div class="player-content" style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
+        
+        <div class="track-info" style="display: flex; align-items: center; gap: 1rem; flex: 1;">
+            <img id="player-cover" src="/static/images/default-cover.jpg" style="width: 50px; height: 50px; border-radius: 4px; object-fit: cover;">
+            <div style="overflow: hidden; white-space: nowrap;">
+                <h4 id="player-title" style="margin: 0; font-size: 1rem; overflow: hidden; text-overflow: ellipsis;">Radio Online</h4>
+                <p id="player-artist" style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">Conectando...</p>
+            </div>
+        </div>
+
+        <div class="player-controls" style="display: flex; align-items: center; gap: 1.5rem;">
+            <button id="playBtn" style="background: var(--primary-color); border: none; width: 50px; height: 50px; border-radius: 50%; color: white; font-size: 1.2rem; cursor: pointer; transition: transform 0.2s;">▶️</button>
+            
+            <div class="volume-container" style="display: flex; align-items: center; gap: 0.5rem;" class="hide-mobile">
+                <span>🔊</span>
+                <input type="range" id="volumeSlider" min="0" max="100" value="80" style="cursor: pointer; accent-color: var(--primary-color);">
+            </div>
+        </div>
+    </div>
+</div>
+
+<audio id="audioPlayer" preload="auto"></audio>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const audioPlayer = document.getElementById('audioPlayer');
+    const playBtn = document.getElementById('playBtn');
+    const volumeSlider = document.getElementById('volumeSlider');
+    const visualizer = document.getElementById('visualizer');
+    const loadingState = document.getElementById('loading-state');
+    const currentTrackCard = document.getElementById('current-track');
+
+    let isPlaying = false;
+
+    // 1. Crear Barras del Visualizador
+    for (let i = 0; i < 60; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'bar';
+        visualizer.appendChild(bar);
+    }
+
+    function animateVisualizer() {
+        const bars = document.querySelectorAll('.bar');
+        bars.forEach(bar => {
+            let height = 5;
+            if (isPlaying) {
+                height = Math.random() * 100 + 10;
+            }
+            bar.style.height = height + '%';
+        });
+    }
+    setInterval(animateVisualizer, 120);
+
+    // 2. Control de Reproducción
+    playBtn.addEventListener('click', () => {
+        if (isPlaying) {
+            audioPlayer.pause();
+            playBtn.textContent = '▶️';
+            isPlaying = false;
+        } else {
+            // Si es la primera vez o está vacío, cargamos
+            if (!audioPlayer.src) {
+                loadNextTrack();
+            } else {
+                audioPlayer.play().catch(e => console.error("Error al dar play:", e));
+            }
+            playBtn.textContent = '⏸️';
+            isPlaying = true;
+        }
+    });
+
+    // 3. Cargar Siguiente Track desde API
+    async function loadNextTrack() {
+        try {
+            const response = await fetch('/api/current-track');
+            const data = await response.json();
+            
+            if (data.error) throw new Error(data.error);
+
+            updateUI(data);
+            
+            audioPlayer.src = data.audio_url;
+            audioPlayer.load();
+            
+            // Intentar reproducir automáticamente si el usuario ya dio "Play" antes
+            if (isPlaying) {
+                audioPlayer.play().catch(err => {
+                    console.log("Esperando interacción del usuario para audio...");
+                });
+            }
+
+            loadingState.style.display = 'none';
+            currentTrackCard.style.display = 'flex';
+
+        } catch (error) {
+            console.error('Error en la carga:', error);
+            // Si hay error (como el de YouTube), esperamos 5 segundos antes de reintentar
+            // Esto evita que las canciones "pasen rápido" infinitamente
+            setTimeout(loadNextTrack, 5000);
+        }
+    }
+
+    // 4. Actualizar Interfaz
+    function updateUI(data) {
+        const title = data.type === 'ad' ? "📢 PUBLICIDAD" : data.title;
+        const artist = data.type === 'ad' ? data.title : (data.artist || "Artista Desconocido");
+        const cover = data.cover_url || '/static/images/default-cover.jpg';
+
+        // Tarjeta principal
+        document.getElementById('track-title').textContent = title;
+        document.getElementById('track-artist').textContent = artist;
+        document.getElementById('track-cover').src = cover;
+        document.getElementById('track-playlist').textContent = data.playlist || "En Vivo";
+
+        // Mini player
+        document.getElementById('player-title').textContent = title;
+        document.getElementById('player-artist').textContent = artist;
+        document.getElementById('player-cover').src = cover;
+
+        document.title = `🔴 ${title} - Radio Online`;
+    }
+
+    // 5. Eventos del Player
+    audioPlayer.addEventListener('ended', () => {
+        console.log("Canción terminada, cargando siguiente...");
+        loadNextTrack();
+    });
+
+    audioPlayer.addEventListener('error', (e) => {
+        console.error("Error en el archivo de audio. Saltando en 5s...");
+        setTimeout(loadNextTrack, 5000);
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+        audioPlayer.volume = e.target.value / 100;
+    });
+
+    // Carga inicial al abrir la página
+    window.addEventListener('load', () => {
+        loadNextTrack();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Gestionar Canciones - Radio Online{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tracks-container {
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .admin-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .btn-back {
+        color: var(--text-secondary);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: color 0.3s;
+    }
+
+    .btn-back:hover {
+        color: var(--primary-color);
+    }
+
+    /* Formulario de Creación */
+    .create-track-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 3rem;
+        border-top: 4px solid var(--primary-color);
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-group label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+    }
+
+    .form-control {
+        background: var(--dark-bg);
+        border: 1px solid #333;
+        color: white;
+        padding: 0.75rem;
+        border-radius: 6px;
+        outline: none;
+    }
+
+    .form-control:focus {
+        border-color: var(--primary-color);
+    }
+
+    .btn-submit {
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.3s;
+        width: 100%;
+    }
+
+    .btn-submit:hover {
+        background: var(--secondary-color);
+    }
+
+    /* Tabla de Tracks */
+    .tracks-table-container {
+        background: var(--card-bg);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+    }
+
+    th {
+        background: rgba(229, 9, 20, 0.1);
+        padding: 1rem;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        color: var(--primary-color);
+    }
+
+    td {
+        padding: 1rem;
+        border-bottom: 1px solid #333;
+        vertical-align: middle;
+    }
+
+    .track-row-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .small-cover {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        object-fit: cover;
+    }
+
+    .duration-tag {
+        font-family: monospace;
+        color: var(--text-secondary);
+    }
+
+    @media (max-width: 768px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .hide-mobile {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tracks-container">
+    <div class="admin-actions">
+        <a href="/admin" class="btn-back">← Volver al Panel</a>
+        <h1 style="font-family: 'Bebas Neue'; font-size: 2.5rem;">Gestionar Canciones</h1>
+    </div>
+
+    <div class="create-track-card">
+        <h3 style="margin-bottom: 1.5rem;">🎵 Agregar Nueva Canción</h3>
+        <form action="/admin/tracks/create" method="POST">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Título *</label>
+                    <input type="text" name="title" class="form-control" required placeholder="Ej: Bohemian Rhapsody">
+                </div>
+                <div class="form-group">
+                    <label>Artista</label>
+                    <input type="text" name="artist" class="form-control" placeholder="Ej: Queen">
+                </div>
+                <div class="form-group">
+                    <label>Álbum</label>
+                    <input type="text" name="album" class="form-control" placeholder="Ej: A Night at the Opera">
+                </div>
+                <div class="form-group">
+                    <label>Duración (segundos)</label>
+                    <input type="number" name="duration" class="form-control" value="0">
+                </div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>URL del Audio (MP3) *</label>
+                    <input type="url" name="audio_url" class="form-control" required placeholder="https://ejemplo.com/musica.mp3">
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>URL de la Carátula (Imagen)</label>
+                    <input type="url" name="cover_url" class="form-control" placeholder="https://ejemplo.com/portada.jpg">
+                </div>
+            </div>
+            <button type="submit" class="btn-submit">Guardar Canción</button>
+        </form>
+    </div>
+
+    <div class="tracks-table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Canción</th>
+                    <th class="hide-mobile">Álbum</th>
+                    <th>Duración</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if tracks %}
+                    {% for track in tracks %}
+                    <tr>
+                        <td>
+                            <div class="track-row-info">
+                                <img src="{{ track.cover_url or '/static/images/default-cover.jpg' }}" class="small-cover">
+                                <div>
+                                    <div style="font-weight: bold;">{{ track.title }}</div>
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ track.artist }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="hide-mobile" style="color: var(--text-secondary);">{{ track.album or '-' }}</td>
+                        <td><span class="duration-tag">{{ track.duration // 60 }}:{{ "%02d" | format(track.duration % 60) }}</span></td>
+                        <td>
+                            <span style="color: #4caf50; font-size: 0.8rem;">Activa</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            No hay canciones cargadas en la biblioteca.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

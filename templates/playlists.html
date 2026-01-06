@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Playlists - Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+        font-family: 'Bebas Neue', cursive;
+        font-size: 2.5rem;
+    }
+
+    .btn-primary {
+        padding: 0.75rem 1.5rem;
+        background: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.3s;
+    }
+
+    .btn-primary:hover {
+        background: var(--secondary-color);
+        transform: translateY(-2px);
+    }
+
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 2000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: var(--card-bg);
+        border-radius: 16px;
+        padding: 2rem;
+        max-width: 500px;
+        width: 90%;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.5rem;
+        cursor: pointer;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        background: var(--dark-bg);
+        border: 2px solid transparent;
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--primary-color);
+    }
+
+    .playlists-grid {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .playlist-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s;
+    }
+
+    .playlist-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);
+    }
+
+    .playlist-info h3 {
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .playlist-info p {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .playlist-meta {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+    }
+
+    .playlist-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        border: none;
+        background: var(--dark-bg);
+        color: var(--text-primary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s;
+    }
+
+    .btn-icon:hover {
+        background: var(--primary-color);
+        transform: scale(1.1);
+    }
+
+    .btn-danger {
+        background: #f44336;
+    }
+
+    .btn-danger:hover {
+        background: #d32f2f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🎵 Gestión de Playlists</h1>
+    <button class="btn-primary" onclick="openModal()">+ Nueva Playlist</button>
+</div>
+
+<div class="playlists-grid">
+    {% for playlist in playlists %}
+    <div class="playlist-card">
+        <div class="playlist-info">
+            <h3>{{ playlist.name }}</h3>
+            <p>{{ playlist.description or 'Sin descripción' }}</p>
+            <div class="playlist-meta">
+                <span>Creada: {{ playlist.created_at.strftime('%d/%m/%Y') }}</span>
+                <span>Estado: {% if playlist.is_active %}✅ Activa{% else %}❌ Inactiva{% endif %}</span>
+            </div>
+        </div>
+        <div class="playlist-actions">
+            <a href="{{ url_for('manage_playlist', playlist_id=playlist.id) }}" class="btn-icon" title="Gestionar Canciones" style="text-decoration: none;">✏️</a>
+            <form method="POST" action="/admin/playlists/{{ playlist.id }}/delete" style="display: inline;">
+                <button type="submit" class="btn-icon btn-danger" title="Eliminar" 
+                        onclick="return confirm('¿Eliminar esta playlist?')">🗑️</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not playlists %}
+<div style="text-align: center; padding: 4rem; color: var(--text-secondary);">
+    <p style="font-size: 3rem; margin-bottom: 1rem;">🎵</p>
+    <p>No hay playlists creadas aún</p>
+    <button class="btn-primary" onclick="openModal()" style="margin-top: 1rem;">Crear Primera Playlist</button>
+</div>
+{% endif %}
+
+<!-- Modal Crear Playlist -->
+<div id="createModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Nueva Playlist</h2>
+            <button class="btn-close" onclick="closeModal()">×</button>
+        </div>
+        <form method="POST" action="/admin/playlists/create">
+            <div class="form-group">
+                <label for="name">Nombre *</label>
+                <input type="text" id="name" name="name" required placeholder="Ej: Rock Clásico">
+            </div>
+            <div class="form-group">
+                <label for="description">Descripción</label>
+                <textarea id="description" name="description" rows="3" 
+                          placeholder="Describe el contenido de esta playlist..."></textarea>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%;">Crear Playlist</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function openModal() {
+        document.getElementById('createModal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('createModal').classList.remove('active');
+    }
+
+    // Cerrar modal al hacer click fuera
+    document.getElementById('createModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Panel Admin - Radio Online{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+
+    .admin-header h1 {
+        font-family: 'Bebas Neue', cursive;
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(90deg, #e50914, #ff6b6b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .stat-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 2rem;
+        text-align: center;
+        transition: transform 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .stat-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .admin-sections {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .section-card {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 2rem;
+        transition: all 0.3s;
+    }
+
+    .section-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(229, 9, 20, 0.3);
+    }
+
+    .section-card h3 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .section-card p {
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+    }
+
+    .btn-section {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        background: var(--primary-color);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        transition: all 0.3s;
+        font-weight: 500;
+    }
+
+    .btn-section:hover {
+        background: var(--secondary-color);
+        transform: translateX(5px);
+    }
+
+    .playlists-preview {
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 2rem;
+    }
+
+    .playlists-preview h3 {
+        font-size: 1.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .playlist-item {
+        background: var(--dark-bg);
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .playlist-item:hover {
+        background: rgba(229, 9, 20, 0.1);
+    }
+
+    .playlist-info h4 {
+        margin-bottom: 0.25rem;
+    }
+
+    .playlist-info p {
+        color: var(--text-secondary);
+        font-size: 0.875rem;
+    }
+
+    .playlist-status {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        background: #4caf50;
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-header">
+    <h1>Panel de Administración</h1>
+    <p>Bienvenido, {{ session.username }}</p>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon">🎵</div>
+        <div class="stat-value">{{ playlists|length }}</div>
+        <div class="stat-label">Playlists</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">🎸</div>
+        <div class="stat-value">{{ tracks_count }}</div>
+        <div class="stat-label">Canciones</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon">📢</div>
+        <div class="stat-value">{{ ads_count }}</div>
+        <div class="stat-label">Publicidades</div>
+    </div>
+</div>
+
+<div class="admin-sections">
+    <div class="section-card">
+        <h3>🎵 Playlists</h3>
+        <p>Crea y gestiona playlists, organiza tu música por estilos y horarios.</p>
+        <a href="/admin/playlists" class="btn-section">Gestionar Playlists →</a>
+    </div>
+    
+    <div class="section-card">
+        <h3>🎸 Canciones</h3>
+        <p>Agrega canciones con URLs externas, edita metadatos y gestiona tu biblioteca.</p>
+        <a href="/admin/tracks" class="btn-section">Gestionar Canciones →</a>
+    </div>
+    
+    <div class="section-card">
+        <h3>📢 Publicidades</h3>
+        <p>Sube archivos MP3 de publicidades y configura su reproducción.</p>
+        <a href="/admin/ads" class="btn-section">Gestionar Publicidades →</a>
+    </div>
+    
+    <div class="section-card">
+        <h3>📅 Programación</h3>
+        <p>Configura horarios y días para cada playlist.</p>
+        <a href="/admin/schedule" class="btn-section">Gestionar Horarios →</a>
+    </div>
+</div>
+
+<div class="playlists-preview">
+    <h3>
+        <span>📝 Playlists Activas</span>
+        <a href="/admin/playlists" style="font-size: 0.875rem; color: var(--primary-color); text-decoration: none;">Ver todas →</a>
+    </h3>
+    
+    {% if playlists %}
+        {% for playlist in playlists[:5] %}
+        <div class="playlist-item">
+            <div class="playlist-info">
+                <h4>{{ playlist.name }}</h4>
+                <p>{{ playlist.description or 'Sin descripción' }}</p>
+            </div>
+            <span class="playlist-status">Activa</span>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+            No hay playlists creadas. <a href="/admin/playlists" style="color: var(--primary-color);">Crear primera playlist</a>
+        </p>
+    {% endif %}
+</div>
+{% endblock %}
