@@ -17,7 +17,7 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 db = SQLAlchemy(app)
 
-JAMENDO_CLIENT_ID = os.environ.get('JAMENDO_CLIENT_ID', 'da67e0d3')
+JAMENDO_CLIENT_ID = os.environ.get('JAMENDO_CLIENT_ID', '44c2831a')
 
 # ===================================
 # MODELOS DE BASE DE DATOS
@@ -101,7 +101,6 @@ class PlaybackHistory(db.Model):
 # ===================================
 
 def search_jamendo_tracks(query='', genre='', limit=20):
-    """Busca canciones en Jamendo API"""
     try:
         url = 'https://api.jamendo.com/v3.0/tracks/'
         params = {
@@ -111,14 +110,17 @@ def search_jamendo_tracks(query='', genre='', limit=20):
             'audioformat': 'mp32',
             'include': 'musicinfo'
         }
-
-        if query:
-            params['search'] = query
-        if genre:
-            params['tags'] = genre
+        if query: params['search'] = query
+        if genre: params['tags'] = genre
 
         response = requests.get(url, params=params)
         data = response.json()
+        
+        # --- LÍNEA DE DEBUG: Mira tu consola de Python cuando busques ---
+        print(f"DEBUG: Respuesta Jamendo -> {data}") 
+
+        if 'results' not in data:
+            return []
 
         tracks = []
         for track in data.get('results', []):
@@ -135,6 +137,57 @@ def search_jamendo_tracks(query='', genre='', limit=20):
     except Exception as e:
         print(f"Error buscando en Jamendo: {e}")
         return []
+
+@app.route('/admin/playlists/<int:playlist_id>/add-jamendo-track', methods=['POST'])
+def add_jamendo_track_to_playlist(playlist_id):
+    # 1. Crear el track en la DB si no existe
+    audio_url = request.form.get('audio_url')
+    track = Track.query.filter_by(audio_url=audio_url).first()
+    
+    if not track:
+        track = Track(
+            title=request.form.get('title'),
+            artist=request.form.get('artist'),
+            album=request.form.get('album'),
+            duration=int(request.form.get('duration', 0)),
+            audio_url=audio_url,
+            cover_url=request.form.get('cover_url')
+        )
+        db.session.add(track)
+        db.session.flush() # Para obtener el track.id
+
+    # 2. Vincularlo a la playlist
+    last_pos = db.session.query(db.func.max(PlaylistTrack.position)).filter_by(playlist_id=playlist_id).scalar() or 0
+    new_rel = PlaylistTrack(
+        playlist_id=playlist_id,
+        track_id=track.id,
+        position=last_pos + 1
+    )
+    db.session.add(new_rel)
+    db.session.commit()
+    
+    return jsonify({'status': 'success'})
+
+@app.route('/api/tracks/import-jamendo', methods=['POST'])
+def import_jamendo_track():
+    data = request.json
+    # Verificamos si ya existe para no duplicar
+    existing_track = Track.query.filter_by(audio_url=data['audio_url']).first()
+    
+    if not existing_track:
+        new_track = Track(
+            title=data['title'],
+            artist=data['artist'],
+            album=data.get('album', ''),
+            duration=data['duration'],
+            audio_url=data['audio_url'],
+            cover_url=data.get('cover_url', '')
+        )
+        db.session.add(new_track)
+        db.session.commit()
+        return jsonify({'track_id': new_track.id})
+    
+    return jsonify({'track_id': existing_track.id})
 
 def get_jamendo_playlists(genre='', limit=20):
     """Obtiene playlists predefinidas de Jamendo"""

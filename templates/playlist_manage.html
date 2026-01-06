@@ -312,28 +312,25 @@
         }
     }
 
-    async function addTrackDirectly(trackData) {
-        const formData = new FormData();
-        formData.append('title', trackData.title);
-        formData.append('artist', trackData.artist);
-        formData.append('album', trackData.album);
-        formData.append('duration', trackData.duration);
-        formData.append('audio_url', trackData.audio_url);
-        formData.append('cover_url', trackData.cover_url);
+        async function addTrackDirectly(trackData) {
+            const formData = new FormData();
+            formData.append('title', trackData.title);
+            formData.append('artist', trackData.artist);
+            formData.append('audio_url', trackData.audio_url);
+            formData.append('duration', trackData.duration);
+            formData.append('cover_url', trackData.cover_url);
 
-        try {
-            await fetch('/admin/tracks/create', {
-                method: 'POST',
-                body: formData
-            });
-
-            setTimeout(() => {
-                location.reload();
-            }, 1000);
-        } catch (error) {
-            alert('Error al agregar la canción');
+            try {
+                // Cambiamos la URL para que se añada directamente a ESTA playlist
+                await fetch(`/admin/playlists/{{ playlist.id }}/add-jamendo-track`, {
+                    method: 'POST',
+                    body: formData
+                });
+                location.reload(); // Recarga para ver la canción en la lista
+            } catch (error) {
+                alert('Error al agregar la canción');
+            }
         }
-    }
 
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
